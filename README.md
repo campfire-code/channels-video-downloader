@@ -1,3 +1,76 @@
+# 视频号视频下载（wx_channel）
+
+> 篝火出品 · 开源工具箱收录（**仅开源，不上架篝火应用区**）· 基于开源项目 [nobiyou/wx_channel](https://github.com/nobiyou/wx_channel)（MIT）
+
+> [!WARNING]
+> **风险提示**：本工具涉及第三方平台的内容获取，存在账号被限制、违反平台规则或侵权的风险，仅供学习研究。请遵守平台规则与法律法规，使用后果自负。
+> **只下载你自己有权使用的内容**（自己发布的视频，或已获得作者授权的素材）。未经许可下载、转载他人作品可能侵犯著作权。批量下载默认不要开，下载并发保持默认值。
+
+> [!CAUTION]
+> **安装前请先看懂它会改你电脑的哪些东西**（以下来自上游文档与源码，作者没有在 Windows 上实机核对）：
+> 1. **安装根证书**：首次运行会把 `SunnyNet` 根证书装进 Windows「受信任的根证书颁发机构」，用来解密微信浏览器的 HTTPS 流量。拿到这张证书私钥的程序理论上可以冒充任何网站，所以只在你信任的电脑上用。
+> 2. **加载网络过滤驱动**：内置的 SunnyNet 代理库在 Windows 上会把 `SunnyFilter2.sys` 写入 `C:\Windows\System32\drivers\` 并注册为驱动，按进程拦截微信的网络连接（因此程序界面显示的是「进程代理」，不是修改系统代理；macOS / Linux 才走系统代理）。所以需要**管理员权限**，部分杀毒软件会拦截或报毒。
+> 3. **改网络参数**：启动时会执行 `netsh int ipv4/ipv6 set dynamicport tcp start=10000 num=55000`，修改系统 TCP 动态端口范围。
+> 4. **本机服务**：监听本机代理端口（默认 2025，可用 `-p` 修改）和 +1 端口的 WebSocket；默认配置还会尝试连接 `ws://127.0.0.1:18081/ws/client`（上游另一个产品 Insight，本机没装就连不上，可在 `config.yaml` 设 `cloud_enabled: false` 关掉）。
+>
+> **卸载还原**：
+> - 关闭程序，在命令行（管理员）运行 `wx_channel.exe --uninstall` 卸载根证书；若失败，打开「证书管理器 → 受信任的根证书颁发机构」手动删除名为 `SunnyNet` 的证书。
+> - 驱动：管理员命令行执行 `sc stop SunnyFilter2`、`sc delete SunnyFilter2`，重启后删除 `C:\Windows\System32\drivers\SunnyFilter2.sys`（服务名取自源码 `NF_DriverName`，未在 Windows 上实测）。
+> - 端口范围：管理员命令行执行 `netsh int ipv4 set dynamicport tcp start=49152 num=16384` 和 `netsh int ipv6 set dynamicport tcp start=49152 num=16384` 恢复系统默认值（若你之前自己改过，请按自己的值）。
+> - 最后删除程序文件夹、`downloads/`、`logs/`。
+
+在电脑上下载微信视频号里的视频（含加密视频的解密、批量下载、下载记录、本地 Web 控制台）。
+
+## 下载
+
+到 [Releases](https://github.com/campfire-code/channels-video-downloader/releases/latest) 下载：
+
+| 电脑 | 文件 |
+|---|---|
+| Windows 10 / 11（64 位） | `channels-video-downloader_版本号_wx_channel_v5.7.13.zip` |
+
+- **仅支持 Windows**，没有 Mac 版。要求使用最新版电脑微信（上游文档要求）。
+- 上游还提供「云端版」和「雷达版」，两者会连接上游的 Insight 服务或在后台自动监控，**本仓库没有转发布**，只发布标准版 ZIP；上游同时提供的单文件 EXE 与 ZIP 内容相同，也没有重复转发布。
+- 安装包来自上游官方发布，篝火没有修改，附 `SHA256SUMS.txt` 可核对。
+- 上游代码仓库里还带着三个已编译好的 `.exe`（`wx_channel.exe` 等），请以 Releases 里的 ZIP 为准。
+
+## 怎么用
+
+1. 完整解压 ZIP，右键「以管理员身份运行」`wx_channel.exe`。
+2. 首次运行会自动装根证书；失败时手动双击 `downloads/SunnyRoot.cer`，选「本地计算机」→「受信任的根证书颁发机构」。
+3. 在微信里打开视频号页面并刷新，页面会出现下载按钮，点击即可下载；需要批量下载时，在个人主页打开列表后使用批量下载弹窗（有「视频」「直播回放」两个标签）。
+4. 浏览器打开 `http://localhost:2025/console` 可看浏览记录、下载记录、下载队列。
+5. 默认下载到程序目录下的 `downloads/`，按作者建文件夹，已下载的会自动跳过。
+
+**说明**
+- 界面和文档为中文。无需账号或密钥，也不需要显卡。
+- 「无感雷达」默认关闭（`radar_enabled: false`），保持关闭。
+- 微信更新后页面结构变化可能让按钮失效，需等上游适配。
+
+## 验收用例
+
+| 操作 | 应得到 |
+|---|---|
+| 管理员运行 `wx_channel.exe`，看到「证书安装成功」或「证书已存在」 | 控制台显示代理端口 2025 与服务状态已启动 |
+| 微信打开自己有权使用的视频号视频并刷新页面 | 页面出现下载按钮，点击后 `downloads/` 里出现可播放的视频 |
+| 运行 `wx_channel.exe --uninstall` | 提示「证书卸载成功」 |
+
+> 作者的验证范围：本机是 macOS，**无法运行这个 Windows 程序**，以上用例未实测；已核对的是上游 LICENSE、发布附件、源码里的证书 / 驱动 / 网络参数行为，以及日志中不打印 cookie / token（见下）。
+
+## 和上游的区别
+
+- 仅新增本中文风险说明与篝火发布流程（`tool.json`、`.github/workflows/release.yml`），软件代码与上游一致。
+- 移除了上游的 CI 工作流（依赖上游的密钥与环境）。
+- 发布时只转发布标准版 ZIP。
+
+## 归属与许可证
+
+本仓库由**篝火**整理发布。软件全部功能与版权归 [nobiyou/wx_channel](https://github.com/nobiyou/wx_channel) 原作者所有，按 MIT 许可证再分发，内置的 [SunnyNet](https://github.com/qtgolang/SunnyNet) 等第三方库见上游 `go.mod`。全部工具目录见 [toolkit-hub](https://github.com/campfire-code/toolkit-hub)。
+
+---
+
+以下为上游原始说明：
+
 # 微信视频号下载助手
 
 <p align="center">

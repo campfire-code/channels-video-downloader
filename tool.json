@@ -1,0 +1,10 @@
+{
+  "id": "w27",
+  "slug": "channels-video-downloader",
+  "name": "视频号视频下载",
+  "version": "5.7.13-campfire.1",
+  "repo": "campfire-code/channels-video-downloader",
+  "license": "MIT",
+  "delivery": "mirror",
+  "upstream": { "repo": "nobiyou/wx_channel", "license": "MIT", "tag": "v5.7.13" }
+}
